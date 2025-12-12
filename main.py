@@ -7,9 +7,9 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from vllm import AsyncEngineArgs, AsyncLLMEngine, SamplingParams
+from vllm import AsyncEngineArgs, AsyncLLMEngine, SamplingParams, RequestOutput
 
-MODEL_PATH = "/data/users/fanis/models/Qwen3-32B/"
+MODEL_PATH = "/home/fanis/models/Qwen3-32B/"
 
 
 class LLMEngineSingleton:
@@ -34,6 +34,7 @@ class LLMEngineSingleton:
                     tensor_parallel_size=1,
                     dtype="auto",
                     trust_remote_code=True,
+                    max_model_len=16384,
                 )
                 cls._engine = AsyncLLMEngine.from_engine_args(engine_args)
 
@@ -138,10 +139,13 @@ async def generate(request: PromptRequest):
         )
         
         # Получение финального результата
-        final_output = None
+        final_output: RequestOutput | None = None
         async for request_output in results_generator:
             final_output = request_output
         
+        if final_output is None:
+            raise Exception("Generated None")
+
         # Извлечение результата
         generated_text = final_output.outputs[0].text
         
@@ -155,4 +159,4 @@ async def generate(request: PromptRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="127.0.0.1", port=8000)
